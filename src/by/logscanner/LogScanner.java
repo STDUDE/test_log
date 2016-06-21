@@ -33,6 +33,7 @@ public class LogScanner {
     
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
     List<String> logData;
+    ByteArrayOutputStream baos;
     
     private final List<FileData> fileData;    
 
@@ -54,6 +55,7 @@ public class LogScanner {
         this.requestNo = requestNo;
         this.logData = new ArrayList<>();
         this.fileData = new ArrayList<>();
+        baos = new ByteArrayOutputStream();
     }
     
     public void init() throws IOException {
@@ -116,22 +118,17 @@ public class LogScanner {
     }
     
     private void read(File file) throws FileNotFoundException, IOException {
+        DataOutputStream out = new DataOutputStream(baos);
         SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy");
         
         Stream<String> lines = Files.lines(file.toPath(), StandardCharsets.UTF_8 );
         for ( String temp : (Iterable<String>) lines::iterator )
         {
-            logData.add((temp.contains(sdf.format(date)) && temp.contains("[" + startupId + "." + requestNo + "]")) ? temp + "\n" : "");
-            
+            out.writeUTF((temp.contains(sdf.format(date)) && temp.contains("[" + startupId + "." + requestNo + "]")) ? temp + "\n" : "");
         }
     }
     
     private byte[] toBytes() throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(baos);
-        for (String element : logData) {
-            out.writeUTF(element);
-        }
         return baos.toByteArray();
     }
     
