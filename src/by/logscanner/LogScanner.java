@@ -32,10 +32,10 @@ public class LogScanner {
     String destPath;
     
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
-    String logData;
+    List<String> logData;
     
-    private final List<FileData> fileData;
-    
+    private final List<FileData> fileData;    
+
     
     class FileData {
         public String fileName;
@@ -52,7 +52,7 @@ public class LogScanner {
         this.date = sdf.parse(date);
         this.startupId = startupId;
         this.requestNo = requestNo;
-        this.logData = "";
+        this.logData = new ArrayList<>();
         this.fileData = new ArrayList<>();
     }
     
@@ -62,14 +62,11 @@ public class LogScanner {
         resPath = resBundle.getString("resPath"); 
         destPath = resBundle.getString("destPath");
         
-        System.out.println("logType: " + logType + ", date: " + sdf.format(date) + ", startupId: " + startupId + ", requestNo: " + requestNo + ", path: " + resPath);
-        
         FileUtils.cleanDirectory(new File(destPath));
         
-        long startTime = System.nanoTime();
         if (!isGateway()) {
             walk(resPath);
-            fileData.add(new FileData(getDestFileName(), logData.getBytes(StandardCharsets.UTF_8)));
+            fileData.add(new FileData(getDestFileName(), toBytes()));
         }
         else {
             walkGateway(resPath);
@@ -77,9 +74,7 @@ public class LogScanner {
         
         write();
         
-        long endTime = System.nanoTime();
-        long elapsedTimeInMillis = TimeUnit.MILLISECONDS.convert((endTime - startTime), TimeUnit.NANOSECONDS);
-        System.out.println("Total elapsed time: " + elapsedTimeInMillis + " ms");
+        
     }
     
     private void walk(String resPath) throws IOException {
@@ -93,7 +88,7 @@ public class LogScanner {
                 walk(f.getAbsolutePath());
             }
             else if (f.getName().equals(logType+".log")) {  
-                logData += read(f);
+                read(f);
             }
         }
     }
@@ -120,16 +115,24 @@ public class LogScanner {
         return FileUtils.readFileToByteArray(file);
     }
     
-    private String read(File file) throws FileNotFoundException, IOException {
+    private void read(File file) throws FileNotFoundException, IOException {
         SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy");
         
         Stream<String> lines = Files.lines(file.toPath(), StandardCharsets.UTF_8 );
-        String line = "";
         for ( String temp : (Iterable<String>) lines::iterator )
         {
-            line  += (temp.contains(sdf.format(date)) && temp.contains("[" + startupId + "." + requestNo + "]")) ? temp + "\n" : "" ;
+            logData.add((temp.contains(sdf.format(date)) && temp.contains("[" + startupId + "." + requestNo + "]")) ? temp + "\n" : "");
+            
         }
-        return line;
+    }
+    
+    private byte[] toBytes() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(baos);
+        for (String element : logData) {
+            out.writeUTF(element);
+        }
+        return baos.toByteArray();
     }
     
     private String getDestFileName(){
